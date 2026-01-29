@@ -1,0 +1,192 @@
+We'll Build 3 Projects :
+
+            1) API : Receive HTTP request and respond to them
+            2) Infrasctructure : Communicates with the DB and get data
+            3) Core : Containes the business entities. Does not depend on anything else
+
+            Reasons : Separation of concernes : every layer has its own responsibility this allows:
+
+                                - Testability
+                                - Scalabity and maintainability
+                                - Flexability 
+                                - Reusability
+
+            dotnet new list : list of all projects we can create with dotnet
+
+                             we'll create a :
+                                            solution file : container for our project
+                                                            dotnet new sln
+                                            webapi :  dotnet new webapi -o API -controllers (to use controllers approach instead of minimal API)
+
+                                            classlib : 
+                                                        -dotnet new classlib -o Core
+                                                        -dotnet new classlib -o Infrastructure
+
+                            ADD our projects to the solution :
+                                        dotnet sln add API
+                                        dotnet sln add Core
+                                        dotnet sln add Infrastructure
+
+
+
+
+            Dependencies bwtn our projects : API > Infrastructure > CORE
+
+                                            1) ADD API dependecy on Infra : cd API dotnet add reference ../Infrastructure
+                                            2) ADD Infrastructure dependeny on Core : cd Infrastructure dotnet add reference ../Core
+
+            dotnet restore : to confirm or register our different projects in solution file
+            dotnet build    : make sure we do not have an error on our application 
+
+            cd API : dotnet run   : launch on http://localhost:5268 (nothing)
+
+                    but in Controllers we have
+                                    [ApiController]
+                                    [Route("[controller]")]
+                                    public class WeatherForecastController : ControllerBase
+
+                    meaning in  http://localhost:5268/WeatherForecast we've something
+
+                    Properties : simplify launchSettings.json, here's the simplest version :
+
+                                {
+                                    "$schema": "https://json.schemastore.org/launchsettings.json",
+                                    "profiles": {
+                                        "http": {
+                                        "commandName": "Project",
+                                        "dotnetRunMessages": true,
+                                        "launchBrowser": false,
+                                        "applicationUrl": "http://localhost:5000;https://localhost:5001",
+                                        "environmentVariables": {
+                                            "ASPNETCORE_ENVIRONMENT": "Development"
+                                        }
+                                        }
+                                        
+                                        }
+                                    }
+
+                    Porgram.cs : simplest version 
+
+                                When an HTTP request comes to our server it going trough a pipeline 
+
+                                Middlewares: allows to interact with those request before it reaches the API endpoints
+                                And when the request goes out from API endpoints we can also interact with them using middlewares
+
+                                services : things we inject into classes of our application
+
+
+
+
+                                var builder = WebApplication.CreateBuilder(args);
+
+                                // Add services to the container.
+
+                                builder.Services.AddControllers();
+
+                                
+                                // before this  line services
+
+                                var app = builder.Build();
+
+                                // after this line middlewares
+
+                                         // Configure the HTTP request pipeline.
+
+
+
+                                        app.UseAuthorization();
+
+                                        app.MapControllers();
+
+                                        app.Run();
+
+                        in API.csproj :
+
+                                <Nullable>enable</Nullable> (to avoid null reference exception)
+
+                    Create our products in CORE/Entities
+
+                                            new file class Product : BaseEntity
+                                            new files class BaseEntity  with only id prop
+                    
+                    Infrastructure: Create Entity Frameworl Class
+
+                                    - Install a couple of packages  by nuget (tab in terminal (uncheck prerelease))
+                                     microsoft.entityframeworkcore.SQLserver (+Infrastructure)
+                                     microsoft.entityframeworkDesign (+ API.csproj)
+
+                                     - new folder in infrastructure Data
+                                     - new file class StoreContext in Data
+                                     - StoreContext : DbContext which comes from microsoftEntityFramework
+
+                                    StoreContext.cs
+
+                                     using Microsoft.EntityFrameworkCore;
+                                        namespace Infrastructure.Data;
+                                        // options : sql connection string
+                                        // register this class as a service in our application
+                                        public class StoreContext(DbContextOptions options) : DbContext(options)
+                                        {
+                                        }
+
+                                    To add this service go to program.cs :
+
+                                        // Service to connect to the sql database
+
+                                            builder.Services.AddDbContext<StoreContext>(opt =>
+                                            {
+                                                opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+                                            });
+
+
+                                        // add this to StoreContext class, "Products" will the name of the table in the database
+
+                                                 public DbSet<Product> Products {get;set;}
+
+
+
+                                        // docker-compose.yml in the root of the project 
+
+                                        services:
+                                            sql:
+                                                image: mcr.microsoft.com/mssql/server:2022-latest
+                                                environment:
+                                                ACCEPT_EULA: "Y"
+                                                MSSQL_SA_PASSWORD: "Password@1"
+                                                platform: "linux/amd64"
+                                                ports:
+                                                - "1433:1433"
+
+
+                                        docker compose up -d : to run the container
+
+                                        in appsettings.Development.json add : 
+
+                                                                                ,
+                                        "ConnectionStrings": {
+                                            "DefaultConntection" : "Server=localhost,1433;Database=API_DB;User Id=poulonani;Password=Password@1;TrustServerCerificate=True"
+                                        }
+
+
+                                        Create an EntityFramework called migration : 
+
+                                        install dotnet-ef globaly : dotnet tool install --global dotnet-ef --version 10.0.2
+                                                                                                    ,
+                                        dotnet ef migrations add InitialCreate -s API -p Infrastructure
+                                        warniing : remove migration : dotnet ef migrations remove -s API -p Infrastrucure
+
+                                        Create Product configuration class in Infrastructure to configure database column type
+
+                                        then in store context add  : 
+
+                                         protected override void OnModelCreating(ModelBuilder modelBuilder)
+                                            {
+                                                base.OnModelCreating(modelBuilder);
+                                                modelBuilder.ApplyConfigurationsFromAssembly(typeof(ProductConfiguration).Assembly);
+                                            }
+
+                                        dotnet ef database update : to create our database
+
+
+                                    Creating a product Controller : API new file class ProductController
+
