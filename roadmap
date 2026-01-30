@@ -188,5 +188,42 @@ We'll Build 3 Projects :
                                         dotnet ef database update : to create our database
 
 
-                                    Creating a product Controller : API new file class ProductController
+                                    Creating a product Controller : API new file class ProductController to define type of var to avoid warning in db creation
+
+
+
+
+                                    API Architecture :
+
+                                    API project have controllors and middleware have routing config , api also startup project of our application
+                                    Infrastrucure : contains our data access logic dbContext class and services we use such as strip as long as communication with db
+                                    Core : we're we create our entities and interfaces, the idea is that an interface can injected in a controllers and an implementation class in our infrastrucutre such as Repository when use it ian our api, we use an interface
+                                    [API : Controllers Startup Middleware]  === > [Infrastructure : Repository DbContext ] ==> [ DB Stripe]
+
+                                                                                            |||||
+                                                                                            + + +
+                                                                                            [Core : Entities Interfaces]    
+
+
+
+                                    Repository PAttern : Decouple business code from data access, Separation of concerns avoid direct use of dbcontext, minimize query logic, testability
+                                                         Avoid messy controllers
+                                                         Simplify testing
+                                                         Increased abstraction
+                                                         Maintainability 
+                                                         Reduce dupolicated code
+                                                         - Abstraction of an abstraction
+
+                                                         (InterfaceRepository gives acess tp GetProducts(),GetProduct(int id) to our controller) => Controller
+
+                                                         (Db Context ) => (Repository)   
+
+                                                         (getProducts()) <=> _context.Products.ToList() <=> Selectr* From Products (DB)
+                                                         
+                                    Core/ :
+                                                Create folder interfaces
+                                                Create InterfaceFile IProductRepository
+                                                In product coontrollers we should be able to do CRUD operations on product and see if product exists
+                                                Create ProductRepository class in Infrastructure/Data
+                                                ADD REpository as a service on program.cs
 
